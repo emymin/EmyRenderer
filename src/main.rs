@@ -1,15 +1,14 @@
 #![forbid(unsafe_code)]
 
-use log::{debug, error};
+use log::{error};
 use winit::{
-    event::{Event, WindowEvent, VirtualKeyCode},
+    event::{Event, VirtualKeyCode},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
     dpi::LogicalSize
 };
 use winit_input_helper::WinitInputHelper;
-use pixels::{Error, Pixels, SurfaceTexture};
-
+mod draw;
 
 const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
@@ -28,18 +27,13 @@ fn main() {
             .unwrap()
     };
 
-    let mut pixels = {
-        let window_size = window.inner_size();
-        let surface_texture = SurfaceTexture::new(window_size.width, window_size.height,&window);
-        Pixels::new(WIDTH,HEIGHT,surface_texture).expect("Failed to initialize pixels surface")
-    };
+    let mut frame_buffer = draw::new_frame_buffer(WIDTH, HEIGHT, &window).expect("There was an error creating the frame buffer");
+    draw::clear_frame(&mut frame_buffer);
 
-    let frame = pixels.get_frame();
-    clear_frame(frame);
 
     event_loop.run(move |event, _, control_flow| {
         if let Event::RedrawRequested(_) = event {
-            if pixels
+            if frame_buffer.pixels
             .render()
             .map_err(|e| error!("pixels.render() failed: {}", e))
             .is_err()
@@ -52,27 +46,17 @@ fn main() {
         if input.update(&event){
             if input.key_pressed(VirtualKeyCode::Escape) || input.quit() {
                 *control_flow = ControlFlow::Exit;
+                println!("Exiting...");
                 return;
             }
         }
+        let color = draw::Float4{x:1.0,y:0.0,z:0.0,w:1.0};
 
-        let frame = pixels.get_frame();
+        draw::line(0.0, 0.0, 10.0, 10.0, &color, &mut frame_buffer);
+        draw::set_pixel(&mut frame_buffer, 0, 0, &color);
+        
         
 
     })
 
-}
-
-fn set_pixel(frame:&mut [u8],x:u32,y:u32,r:u8,g:u8,b:u8,a:u8){
-    let index:usize = ((y*WIDTH+x)*4) as usize;
-    frame[index] = r;
-    frame[index+1] = g;
-    frame[index+2] = b;
-    frame[index+3] = a;
-}
-
-fn clear_frame(frame:&mut [u8]){
-    for i in 0..frame.len(){
-        frame[i] = 0;
-    }
 }
