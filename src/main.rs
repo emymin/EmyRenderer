@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
+#![allow(dead_code)]
 
-use log::{error};
 use winit::{
     event::{Event, VirtualKeyCode},
     event_loop::{ControlFlow, EventLoop},
@@ -8,7 +8,8 @@ use winit::{
     dpi::LogicalSize
 };
 use winit_input_helper::WinitInputHelper;
-mod draw;
+pub mod draw;
+pub mod model;
 
 const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
@@ -27,20 +28,17 @@ fn main() {
             .unwrap()
     };
 
-    let mut frame_buffer = draw::new_frame_buffer(WIDTH, HEIGHT, &window).expect("There was an error creating the frame buffer");
-    draw::clear_frame(&mut frame_buffer);
+    let mut canvas = draw::Canvas::new(WIDTH, HEIGHT, &window).expect("There was an error creating the frame buffer");
+    canvas.clear_frame();
 
+    let models = model::Model::load_obj("/dev/assets/bunny.obj").expect("Failed to load model");
+    for model in models.iter(){
+        canvas.draw_wireframe(&model);
+    }
 
     event_loop.run(move |event, _, control_flow| {
         if let Event::RedrawRequested(_) = event {
-            if frame_buffer.pixels
-            .render()
-            .map_err(|e| error!("pixels.render() failed: {}", e))
-            .is_err()
-            {
-                *control_flow = ControlFlow::Exit;
-                return;
-            }
+            canvas.render();
         }
 
         if input.update(&event){
@@ -50,10 +48,6 @@ fn main() {
                 return;
             }
         }
-        let color = draw::Float4{x:1.0,y:0.0,z:0.0,w:1.0};
-
-        draw::line(0.0, 0.0, 10.0, 10.0, &color, &mut frame_buffer);
-        draw::set_pixel(&mut frame_buffer, 0, 0, &color);
         
         
 
