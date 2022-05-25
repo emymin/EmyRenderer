@@ -1,6 +1,7 @@
 use pixels::{Pixels, SurfaceTexture};
 use winit::{window::Window};
 use std::mem;
+use glam::Vec3Swizzles;
 use crate::model::{Model};
 
 pub struct Canvas {
@@ -90,28 +91,28 @@ impl Canvas {
             x+=1;
         }
     }
+
+    pub fn draw_line_vec(&mut self,start:&glam::Vec2,end:&glam::Vec2,color:&glam::Vec4){
+        self.draw_line(start.x as i32,start.y as i32,end.x as i32,end.y as i32,color);
+    }
+    
+    pub fn draw_triangle(&mut self, t0:glam::Vec2,t1:glam::Vec2,t2:glam::Vec2,color:&glam::Vec4){
+        self.draw_line_vec(&t0,&t1,color);
+        self.draw_line_vec(&t1,&t2,color);
+        self.draw_line_vec(&t2,&t0,color);
+    }
     
     pub fn draw_wireframe(&mut self,model:&Model){
         let width = self.width as f32;
         let height = self.height as f32;
-        for i in (0..model.indices.len()).step_by(3){
-            for j in 0..3{
-                let i1 = model.indices[i+j] as usize;
-                let i2 = model.indices[i+((j+1)%3)] as usize;
-
-                let x0 = (model.vertices[i1*3] + 1.0) * width / 2.0;
-                let y0 = (model.vertices[i1*3+1]*-1. + 1.0) * height / 2.0;
-                let x1 = (model.vertices[i2*3] + 1.0) * width / 2.0;
-                let y1 = (model.vertices[i2*3+1]*-1. + 1.0) * height / 2.0;
-
-                self.draw_line(
-                    x0 as i32,
-                    y0 as i32,
-                    x1 as i32,
-                    y1 as i32,
-                    &glam::Vec4::new(1.0,1.0,1.0,1.0)
-                );
-            }
+        let scale_vec = glam::Vec2::new(width/2.0,height/2.0);
+        let flip_vec = glam::Vec2::new(1.0,-1.0);
+        for face in &model.faces{
+            let t0:glam::Vec2 = (model.vertices[face.vertices[0]].position.xy()*flip_vec + 1.0)*scale_vec;
+            let t1:glam::Vec2 = (model.vertices[face.vertices[1]].position.xy()*flip_vec + 1.0)*scale_vec;
+            let t2:glam::Vec2 = (model.vertices[face.vertices[2]].position.xy()*flip_vec + 1.0)*scale_vec;
+            self.draw_triangle(t0,t1,t2,&glam::Vec4::new(1.0,1.0,1.0,1.0));
         }
     }
+
 }
