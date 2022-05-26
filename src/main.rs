@@ -33,7 +33,7 @@ fn main() {
 
     let models = model::Model::load_obj("/dev/assets/bunny.obj").expect("Failed to load model");
     for model in models.iter(){
-        canvas.draw_wireframe(&model);
+        canvas.draw_model(&model,false);
     }
 
     event_loop.run(move |event, _, control_flow| {

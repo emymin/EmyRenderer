@@ -96,23 +96,66 @@ impl Canvas {
         self.draw_line(start.x as i32,start.y as i32,end.x as i32,end.y as i32,color);
     }
     
-    pub fn draw_triangle(&mut self, t0:glam::Vec2,t1:glam::Vec2,t2:glam::Vec2,color:&glam::Vec4){
+    pub fn draw_wire_triangle(&mut self, t0:glam::Vec2,t1:glam::Vec2,t2:glam::Vec2,color:&glam::Vec4){
         self.draw_line_vec(&t0,&t1,color);
         self.draw_line_vec(&t1,&t2,color);
         self.draw_line_vec(&t2,&t0,color);
     }
     
-    pub fn draw_wireframe(&mut self,model:&Model){
+
+    pub fn draw_triangle(&mut self, t0:glam::Vec2,t1:glam::Vec2,t2:glam::Vec2,color:&glam::Vec4){
+        let (mut t0,mut t1,mut t2) = (t0,t1,t2);
+        
+        if t0.y==t1.y && t0.y==t2.y{return;}
+        if t0.y>t1.y {mem::swap(&mut t0,&mut t1);}
+        if t0.y>t2.y {mem::swap(&mut t0,&mut t2);}
+        if t1.y>t2.y {mem::swap(&mut t1,&mut t2);}
+        let total_height = t2.y-t0.y;
+        let mut i = 0f32;
+        while i<total_height {
+            let second_half = i>t1.y-t0.y || t1.y==t0.y;
+            let segment_height = if second_half{t2.y-t1.y}else{t1.y-t0.y};
+            
+            let alpha = i/total_height;
+            let beta = (i-if second_half{t1.y-t0.y}else{0.0})/segment_height;
+            
+            let mut a = t0 + (t2-t0)*alpha;
+            let mut b = if second_half{t1+(t2-t1)*beta}else{t0+(t1-t0)*beta};
+
+            if a.x>b.x{
+                mem::swap(&mut a,&mut b);
+            }
+            let mut j = a.x as i32;
+            while j<b.x as i32{
+                self.set_pixel(j, (t0.y as i32) + (i as i32), color);
+                j+=1;
+            }
+            i+=1.0;
+        }
+
+    }
+
+    pub fn draw_model(&mut self,model:&Model,is_wireframe:bool){
         let width = self.width as f32;
         let height = self.height as f32;
         let scale_vec = glam::Vec2::new(width/2.0,height/2.0);
         let flip_vec = glam::Vec2::new(1.0,-1.0);
-        for face in &model.faces{
+        for (i,face) in model.faces.iter().enumerate(){
             let t0:glam::Vec2 = (model.vertices[face.vertices[0]].position.xy()*flip_vec + 1.0)*scale_vec;
             let t1:glam::Vec2 = (model.vertices[face.vertices[1]].position.xy()*flip_vec + 1.0)*scale_vec;
             let t2:glam::Vec2 = (model.vertices[face.vertices[2]].position.xy()*flip_vec + 1.0)*scale_vec;
-            self.draw_triangle(t0,t1,t2,&glam::Vec4::new(1.0,1.0,1.0,1.0));
+            if is_wireframe{
+                self.draw_wire_triangle(t0,t1,t2,&glam::Vec4::ONE);
+            } else {
+                let light_dir = glam::Vec3::new(0.0,0.0,-1.0);
+                let n = (model.vertices[face.vertices[0]].position.xyz()-model.vertices[face.vertices[1]].position.xyz()).cross(model.vertices[face.vertices[1]].position.xyz()-model.vertices[face.vertices[2]].position.xyz()).normalize();
+                let intensity = n.dot(light_dir);
+                
+                self.draw_triangle(t0,t1,t2,&(glam::Vec4::ONE*intensity));
+            }
+            //println!("{}%",(i as f32)/(model.faces.len() as f32)*100.0);
         }
     }
+
 
 }
