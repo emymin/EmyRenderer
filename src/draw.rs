@@ -103,7 +103,7 @@ impl Canvas {
     }
     
 
-    pub fn draw_triangle(&mut self, t0:glam::Vec2,t1:glam::Vec2,t2:glam::Vec2,color:&glam::Vec4){
+    pub fn draw_triangle_line_sweeping(&mut self, t0:glam::Vec2,t1:glam::Vec2,t2:glam::Vec2,color:&glam::Vec4){
         let (mut t0,mut t1,mut t2) = (t0,t1,t2);
         
         if t0.y==t1.y && t0.y==t2.y{return;}
@@ -135,12 +135,16 @@ impl Canvas {
 
     }
 
+    pub fn draw_triangle(&mut self, t0:glam::Vec2,t1:glam::Vec2,t2:glam::Vec2,color:&glam::Vec4){
+        
+    }
+
     pub fn draw_model(&mut self,model:&Model,is_wireframe:bool){
         let width = self.width as f32;
         let height = self.height as f32;
         let scale_vec = glam::Vec2::new(width/2.0,height/2.0);
         let flip_vec = glam::Vec2::new(1.0,-1.0);
-        for (i,face) in model.faces.iter().enumerate(){
+        for (_i,face) in model.faces.iter().enumerate(){
             let t0:glam::Vec2 = (model.vertices[face.vertices[0]].position.xy()*flip_vec + 1.0)*scale_vec;
             let t1:glam::Vec2 = (model.vertices[face.vertices[1]].position.xy()*flip_vec + 1.0)*scale_vec;
             let t2:glam::Vec2 = (model.vertices[face.vertices[2]].position.xy()*flip_vec + 1.0)*scale_vec;
@@ -153,7 +157,7 @@ impl Canvas {
                 
                 self.draw_triangle(t0,t1,t2,&(glam::Vec4::ONE*intensity));
             }
-            //println!("{}%",(i as f32)/(model.faces.len() as f32)*100.0);
+            //println!("{}%",(_i as f32)/(model.faces.len() as f32)*100.0);
         }
     }
 
