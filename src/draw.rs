@@ -14,6 +14,24 @@ fn linear_to_byte(value: f32) -> u8 {
     (value * 255.0) as u8
 }
 
+fn to_barycentric(a: glam::Vec2, b: glam::Vec2, c: glam::Vec2, p: glam::Vec2) -> glam::Vec3 {
+    let u = glam::Vec3::new(
+        c[0] - a[0],
+        b[0] - a[0],
+        a[0] - p[0],
+    ).cross(glam::Vec3::new(
+        c[1] - a[1],
+        b[1] - a[1],
+        a[1] - p[1],
+    ));
+    if u.z.abs()<1.0 {return glam::Vec3::new(-1.0,1.0,1.0);}
+    return glam::Vec3::new(
+        1.0 - (u.x + u.y) / u.z,
+        u.y / u.z,
+        u.x / u.z,
+    );
+}
+
 impl Canvas {
 
     pub fn new(width: u32, height: u32, window:&Window) -> Result<Canvas, String> {
@@ -136,7 +154,39 @@ impl Canvas {
     }
 
     pub fn draw_triangle(&mut self, t0:glam::Vec2,t1:glam::Vec2,t2:glam::Vec2,color:&glam::Vec4){
+        let mut max_box = glam::Vec2::new(0.0,0.0);
+        let mut min_box = glam::Vec2::new(self.width as f32,self.height as f32);
+        let clamp = min_box.clone();
         
+        max_box.x = max_box.x.max(t0.x).min(clamp.x);
+        max_box.x = max_box.x.max(t1.x).min(clamp.x);
+        max_box.x = max_box.x.max(t2.x).min(clamp.x);
+
+        max_box.y = max_box.y.max(t0.y).min(clamp.y);
+        max_box.y = max_box.y.max(t1.y).min(clamp.y);
+        max_box.y = max_box.y.max(t2.y).min(clamp.y);
+
+        min_box.x = min_box.x.min(t0.x).max(0.0);
+        min_box.x = min_box.x.min(t1.x).max(0.0);
+        min_box.x = min_box.x.min(t2.x).max(0.0);
+
+        min_box.y = min_box.y.min(t0.y).max(0.0);
+        min_box.y = min_box.y.min(t1.y).max(0.0);
+        min_box.y = min_box.y.min(t2.y).max(0.0);
+
+        let mut x = min_box.x as i32;
+        while x<max_box.x as i32{
+            let mut y = min_box.y as i32;
+            while y<max_box.y as i32{
+                let bc = to_barycentric(t0,t1,t2,glam::Vec2::new(x as f32,y as f32));
+                if bc.x>=0.0 && bc.y>=0.0 && bc.z>=0.0 {
+                    self.set_pixel(x,y,color);
+                }
+                y+=1;
+            }
+            x+=1;
+        }
+
     }
 
     pub fn draw_model(&mut self,model:&Model,is_wireframe:bool){
@@ -153,11 +203,11 @@ impl Canvas {
             } else {
                 let light_dir = glam::Vec3::new(0.0,0.0,-1.0);
                 let n = (model.vertices[face.vertices[0]].position.xyz()-model.vertices[face.vertices[1]].position.xyz()).cross(model.vertices[face.vertices[1]].position.xyz()-model.vertices[face.vertices[2]].position.xyz()).normalize();
-                let intensity = n.dot(light_dir);
+                let intensity = n.dot(light_dir).clamp(0.0,1.0);
                 
                 self.draw_triangle(t0,t1,t2,&(glam::Vec4::ONE*intensity));
             }
-            //println!("{}%",(_i as f32)/(model.faces.len() as f32)*100.0);
+            println!("{}%",(_i as f32)/(model.faces.len() as f32)*100.0);
         }
     }
 
