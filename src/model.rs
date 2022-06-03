@@ -4,10 +4,12 @@ pub struct Vertex{
     pub uv: glam::Vec2,
 }
 pub struct Face{
-    pub vertices: [usize; 3]
+    pub vertices: [usize; 3],
+    pub normal: glam::Vec3,
 }
 
 pub struct Model {
+    pub name: String,
     pub vertices: Vec<Vertex>,
     pub faces: Vec<Face>,
 }
@@ -48,18 +50,25 @@ impl Model{
             }
 
             for i in 0..model.mesh.indices.len()/3{
+                let face_vertices = [
+                    model.mesh.indices[i*3] as usize,
+                    model.mesh.indices[i*3+1] as usize,
+                    model.mesh.indices[i*3+2] as usize,
+                ];
+                //(model.vertices[face.vertices[0]].position.xyz()-model.vertices[face.vertices[1]].position.xyz()).cross(model.vertices[face.vertices[1]].position.xyz()-model.vertices[face.vertices[2]].position.xyz()).normalize();
+                let face_normal = (vertices[face_vertices[2]].position-vertices[face_vertices[0]].position)
+                                        .cross(vertices[face_vertices[1]].position-vertices[face_vertices[0]].position)
+                                        .normalize();
                 let face = Face{
-                    vertices:[
-                        model.mesh.indices[i*3] as usize,
-                        model.mesh.indices[i*3+1] as usize,
-                        model.mesh.indices[i*3+2] as usize,
-                    ]
+                    vertices:face_vertices,
+                    normal:face_normal,
                     
                 };
                 faces.push(face);
             }
 
             loaded_models.push(Model{
+                name:model.name.clone(),
                 vertices: vertices,
                 faces: faces,
             });
