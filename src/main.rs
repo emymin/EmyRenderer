@@ -41,13 +41,12 @@ fn main() {
         intensity: 1.0,
     };
 
+    
+    let models = model::load_obj("/dev/assets/bunny.obj").expect("Failed to load model");
     let shader = shader::Shader{
-        main_texture: shader::Texture::load("/dev/assets/bunnytex.jpg").expect("Failed to load texture"),
         lights: vec![light],
     };
-
-    let models = model::load_obj("/dev/assets/bunny.obj").expect("Failed to load model");
-
+    
     for model in models.iter(){
         let now = Instant::now();
         canvas.draw_model(&model,&shader,false);

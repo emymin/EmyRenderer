@@ -1,3 +1,5 @@
+use crate::model::Material;
+
 pub struct Light{
     pub position: glam::Vec3,
     pub color: glam::Vec3,
@@ -26,6 +28,14 @@ impl Texture{
         })
     }
 
+    pub fn white() -> Texture {
+        Texture{
+            width: 1,
+            height: 1,
+            pixels: vec![255, 255, 255, 255],
+        }
+    }
+
     pub fn get_color(&self,x: u32, y: u32) -> glam::Vec4{
         let index = (y * self.width + x) as usize;
         let r = self.pixels[index * 4 + 0] as f32 / 255.0;
@@ -36,21 +46,20 @@ impl Texture{
     }
 
     pub fn get_color_uv(&self,uv:glam::Vec2) -> glam::Vec4{
-        let x = (uv.x*self.width as f32) as u32;
-        let y = (uv.y*self.height as f32) as u32;
+        let x = (uv.x.fract() *self.width as f32) as u32;
+        let y = (uv.y.fract() *self.height as f32) as u32;
         return self.get_color(x, y);
     }
 }
 
 pub struct Shader{
-    pub main_texture: Texture,
     pub lights: Vec<Light>,
     
 }
 
 impl Shader{
-    pub fn fragment(&self,uv:glam::Vec2,normal:glam::Vec3,position:glam::Vec3) -> glam::Vec4{
-        let mut color = self.main_texture.get_color_uv(uv);
+    pub fn fragment(&self,uv:glam::Vec2,normal:glam::Vec3,position:glam::Vec3,material:&Material) -> glam::Vec4{
+        let mut color = material.albedo_texture.get_color_uv(uv);
 
         let mut light_color = glam::Vec3::new(0.0,0.0,0.0);
         for light in &self.lights{
