@@ -67,7 +67,7 @@ pub fn load_obj(path: &str) -> Result<Vec<Model>,String>{
             );
             let uv:glam::Vec2 = glam::Vec2::new(
                 model.mesh.texcoords[i*2],
-                model.mesh.texcoords[i*2+1],
+                1.0-model.mesh.texcoords[i*2+1],
             );
             vertices.push(Vertex{
                 position,
