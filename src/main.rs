@@ -8,6 +8,9 @@ use winit::{
     dpi::LogicalSize
 };
 use winit_input_helper::WinitInputHelper;
+use std::time::Instant;
+
+
 pub mod draw;
 pub mod model;
 
@@ -31,9 +34,12 @@ fn main() {
     let mut canvas = draw::Canvas::new(WIDTH, HEIGHT, &window).expect("There was an error creating the frame buffer");
     canvas.clear_frame();
 
-    let models = model::Model::load_obj("/dev/assets/bunny.obj").expect("Failed to load model");
+    let models = model::load_obj("/dev/assets/bunny.obj").expect("Failed to load model");
     for model in models.iter(){
+        let now = Instant::now();
         canvas.draw_model(&model,false);
+        let elapsed = now.elapsed();
+        println!("{} drawn in {} ms",model.name,elapsed.as_millis());
     }
 
     event_loop.run(move |event, _, control_flow| {
