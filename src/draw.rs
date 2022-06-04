@@ -3,6 +3,7 @@ use winit::{window::Window};
 use std::mem;
 use glam::Vec3Swizzles;
 use crate::model::{Model,Vertex};
+use crate::shader::{Shader};
 
 
 pub struct Canvas {
@@ -150,7 +151,7 @@ impl Canvas {
     }
     
 
-    pub fn draw_triangle(&mut self, v0:&Vertex,v1:&Vertex,v2:&Vertex,color:&glam::Vec4,is_wireframe:bool){
+    pub fn draw_triangle(&mut self, v0:&Vertex,v1:&Vertex,v2:&Vertex,shader:&Shader,is_wireframe:bool){
         let t0 = self.to_screen_space(&v0.position);
         let t1 = self.to_screen_space(&v1.position);
         let t2 = self.to_screen_space(&v2.position);
@@ -160,7 +161,7 @@ impl Canvas {
                 t0.xy(),
                 t1.xy(),
                 t2.xy(),
-                color
+                &glam::Vec4::ONE,
             );
         }
 
@@ -189,9 +190,11 @@ impl Canvas {
                     
                     if z>self.get_pixel_depth(x, y){
                         
-                        let _uv = bc.x*v0.uv + bc.y*v1.uv + bc.z*v2.uv;
-                        let _normal = bc.x*v0.normal + bc.y*v1.normal + bc.z*v2.normal;
-                        let color = glam::Vec4::from((_normal,1.0));
+                        let uv = bc.x*v0.uv + bc.y*v1.uv + bc.z*v2.uv;
+                        let normal = bc.x*v0.normal + bc.y*v1.normal + bc.z*v2.normal;
+                        let position = bc.x*v0.position + bc.y*v1.position + bc.z*v2.position;
+
+                        let color = shader.fragment(uv, normal,position);
 
                         self.set_pixel(x,y,&color);
                         self.set_pixel_depth(x,y,z);
@@ -205,20 +208,14 @@ impl Canvas {
         
     }
 
-    pub fn draw_model(&mut self,model:&Model,is_wireframe:bool){
+    pub fn draw_model(&mut self,model:&Model,shader:&Shader,is_wireframe:bool){
         println!("Drawing model {}",model.name);
         for (_i,face) in model.faces.iter().enumerate(){
-
-            let light_dir = glam::Vec3::new(0.0,0.0,-1.0);
-            let n = face.normal;
-            let intensity = (n.dot(light_dir) + 1.0)/2.0;
-            let color = glam::Vec4::new(intensity,intensity,intensity,1.0);   
-
             self.draw_triangle(
                 &model.vertices[face.vertices[0]],
                 &model.vertices[face.vertices[1]],
                 &model.vertices[face.vertices[2]],
-                &color,
+                shader,
                 is_wireframe
             );
 
