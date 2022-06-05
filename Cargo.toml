@@ -1,5 +1,5 @@
 [package]
-name = "emy_renderer"
+name = "emyrenderer"
 version = "0.1.0"
 edition = "2021"
 

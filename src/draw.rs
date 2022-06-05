@@ -1,4 +1,4 @@
-use pixels::{Pixels, SurfaceTexture};
+use pixels::{Pixels, PixelsBuilder, SurfaceTexture};
 use winit::{window::Window};
 use std::mem;
 use glam::Vec3Swizzles;
@@ -51,7 +51,7 @@ impl Canvas {
         );
 
         if let Ok(pixels) = 
-            Pixels::new(width,height,surface_texture)
+            PixelsBuilder::new(width,height,surface_texture).build()
         {
             Ok(Canvas{
                 width,
@@ -214,8 +214,6 @@ impl Canvas {
     }
 
     pub fn draw_model(&mut self,model:&Model,shader:&Shader,is_wireframe:bool){
-        println!("Drawing model {}",model.name);
-
         let mut mvp = glam::Mat4::from_cols_array(&[1.0,0.0,0.0,0.0,
             0.0,1.0,0.0,0.0,
             0.0,0.0,1.0,0.0,
@@ -233,11 +231,8 @@ impl Canvas {
                 &v_in,
                 is_wireframe
             );
-
-            
-            print!("\r{}%",((_i as f32)/(model.faces.len() as f32)*100.0).round());
+            //print!("\r{}%",((_i as f32)/(model.faces.len() as f32)*100.0).round());
         }
-        print!("\rComplete!\n");
     }
 
 

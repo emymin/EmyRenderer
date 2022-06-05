@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 
 use winit::{
-    event::{Event, VirtualKeyCode},
+    event::{Event,WindowEvent, VirtualKeyCode},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
     dpi::LogicalSize
@@ -42,50 +42,61 @@ fn main() {
 
     let path = matches.value_of("Path").unwrap_or("");
     let is_wireframe = matches.value_of("Use Wireframe").unwrap_or("false").parse::<bool>().unwrap();
+ 
+    //Load models
+    let models = model::load_obj(path).expect("Failed to load model");
 
-
+    //Create window
     let event_loop = EventLoop::new();
     let mut input = WinitInputHelper::new();
-
     let window = {
         let size = LogicalSize::new(WIDTH as f64, HEIGHT as f64);
         WindowBuilder::new()
-            .with_title("Emy Renderer")
+            .with_title("EmyRenderer")
             .with_inner_size(size)
             .with_min_inner_size(size)
             .build(&event_loop)
             .unwrap()
     };
-
     let mut canvas = draw::Canvas::new(WIDTH, HEIGHT, &window).expect("There was an error creating the frame buffer");
-    canvas.clear_frame();
 
     let light = shader::Light{
         position: glam::Vec3::new(-1.0, -1.0, 2.0),
         color: glam::Vec3::new(1.0, 1.0, 1.0),
         intensity: 1.0,
     };
-
     
-    let models = model::load_obj(path).expect("Failed to load model");
-    let shader = shader::Shader{
+    let mut shader = shader::Shader{
         lights: vec![light],
     };
     
-
-    let start = Instant::now();
-    for model in models.iter(){
-        let now = Instant::now();
-        canvas.draw_model(&model,&shader,is_wireframe);
-        let elapsed = now.elapsed();
-        println!("{} drawn in {} ms",model.name,elapsed.as_millis());
-    }
-    let elapsed = start.elapsed();
-    println!("Rendered {} models in {} ms",models.len(),elapsed.as_millis());
+    let time = Instant::now();
 
     event_loop.run(move |event, _, control_flow| {
-        if let Event::RedrawRequested(_) = event {
-            canvas.render();
+        *control_flow = ControlFlow::Poll;
+        
+        match event {
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => {
+                println!("The close button was pressed; stopping");
+                *control_flow = ControlFlow::Exit
+            },
+            Event::MainEventsCleared => {
+                let t = time.elapsed().as_secs_f32();
+                shader.lights[0].position = glam::Vec3::new(t.sin(),t.cos(),t.sin());
+        
+                let start = Instant::now();
+                canvas.clear_frame();
+                for model in models.iter(){
+                    canvas.draw_model(&model,&shader,is_wireframe);
+                }
+                let elapsed = start.elapsed();
+                window.set_title(&format!("EmyRenderer | Frame Time: {:?}", elapsed.as_millis()));
+                canvas.render();
+            },
+            _ => ()
         }
 
         if input.update(&event){
@@ -94,10 +105,11 @@ fn main() {
                 println!("Exiting...");
                 return;
             }
+            
         }
-        
-        
 
-    })
+
+
+    });
 
 }
