@@ -94,7 +94,7 @@ fn main() {
                     canvas.draw_model(&model,&shader,is_wireframe);
                 }
                 let elapsed = start.elapsed();
-                window.set_title(&format!("EmyRenderer | Frame Time: {:?}", elapsed.as_millis()));
+                window.set_title(&format!("EmyRenderer | Frame Time: {} | FPS: {}", elapsed.as_millis(), 1.0 / elapsed.as_secs_f32()));
                 canvas.render();
             },
             _ => ()
