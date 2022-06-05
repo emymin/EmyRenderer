@@ -11,7 +11,7 @@ pub struct Canvas {
     pub height: u32,
     pub pixels: Pixels,
     pub depth_buffer: Vec<f32>,
-    screen_space_transform: glam::Mat4,
+    viewport_matrix: glam::Mat4,
 }
 
 fn linear_to_byte(value: f32) -> u8 {
@@ -35,6 +35,17 @@ fn to_barycentric(a: glam::Vec3, b: glam::Vec3, c: glam::Vec3, p: glam::Vec3) ->
 
 }
 
+pub fn viewport_matrix(x:f32,y:f32,width:f32,height:f32,depth:f32) -> glam::Mat4{
+    let m = glam::Mat4::from_cols_array(&[
+        width/2.0, 0.0, 0.0, 0.0,
+        0.0, height/2.0, 0.0, 0.0,
+        0.0, 0.0, depth/2.0, 0.0,
+        x+width/2.0, y+height/2.0, depth/2.0, 1.0,
+    ]);
+    return m;
+}
+
+
 impl Canvas {
 
     pub fn new(width: u32, height: u32, window:&Window) -> Result<Canvas, String> {
@@ -42,13 +53,7 @@ impl Canvas {
         let surface_texture = SurfaceTexture::new(window_size.width, window_size.height,&window);
         let depth_buffer = vec![f32::NEG_INFINITY; (width * height) as usize];
 
-        let screen_space_transform = glam::Mat4::from_cols_array(&[
-            width as f32/2.0,0.0,0.0,0.0,
-            0.0,-(height as f32)/2.0,0.0,0.0,
-            0.0,0.0,1.0,0.0,
-            width as f32/2.0,height as f32/2.0,0.0,1.0
-        ]
-        );
+        let viewport_matrix = viewport_matrix(0.0, 0.0, width as f32, height as f32, 1.0);
 
         if let Ok(pixels) = 
             PixelsBuilder::new(width,height,surface_texture).build()
@@ -58,7 +63,7 @@ impl Canvas {
                 height,
                 pixels,
                 depth_buffer,
-                screen_space_transform,
+                viewport_matrix,
             })
         } else {
             return Err("Failed to initialize frame buffer".to_string());
@@ -100,11 +105,8 @@ impl Canvas {
     
     pub fn clear_frame(&mut self){
         let frame = self.pixels.get_frame();
-        for i in 0..frame.len(){
-            frame[i] = 128;
-        }
-        self.depth_buffer.clear();
-        self.depth_buffer.resize((self.width * self.height) as usize,f32::NEG_INFINITY);
+        frame.iter_mut().for_each(|x| *x=128);
+        self.depth_buffer.iter_mut().for_each(|x| *x=f32::NEG_INFINITY);
     }
     
     pub fn draw_line(&mut self,x0:i32,y0:i32,x1:i32,y1:i32,color:&glam::Vec4){
@@ -214,12 +216,19 @@ impl Canvas {
     }
 
     pub fn draw_model(&mut self,model:&Model,shader:&Shader,is_wireframe:bool){
-        let mut mvp = glam::Mat4::from_cols_array(&[1.0,0.0,0.0,0.0,
-            0.0,1.0,0.0,0.0,
-            0.0,0.0,1.0,0.0,
-            0.0,0.0,-1.0/shader.c,1.0]);
-        mvp*=self.screen_space_transform;
-        let v_in = VertInput { mvp: mvp, c: shader.c };
+        let eye = glam::Vec3::new(shader.time.sin()*2.0,shader.time.sin(),shader.time.cos()*2.0);
+        let center = glam::Vec3::new(0.0,0.0,0.0);
+
+        let view_matrix = glam::Mat4::look_at_rh(eye,center,glam::Vec3::new(0.0,1.0,0.0));
+        let projection_matrix = glam::Mat4::perspective_lh(f32::to_radians(60.0),
+                                                                self.width as f32/self.height as f32,
+                                                                0.1,
+                                                                100.0);
+
+        let model_matrix = glam::Mat4::IDENTITY;
+        let mvp = self.viewport_matrix*projection_matrix*view_matrix*model_matrix;
+
+        let v_in = VertInput { mvp: mvp};
 
         for (_i,face) in model.faces.iter().enumerate(){
             self.draw_triangle(

@@ -56,7 +56,8 @@ impl Texture{
 
 pub struct Shader{
     pub lights: Vec<Light>,
-    pub c: f32,
+    pub time: f32,
+    
     
 }
 
@@ -69,7 +70,6 @@ pub struct FragInput{
 
 pub struct VertInput{
     pub mvp : glam::Mat4,
-    pub c: f32,
 }
 
 impl Shader{
@@ -87,7 +87,7 @@ impl Shader{
         return color;
     }
     pub fn vertex(&self,vertex:&Vertex,i:&VertInput) -> glam::Vec3{
-        let om = (i.mvp * glam::Vec4::from((vertex.position,1.0))).xyz();
-        return om/(1.0-vertex.position.z/i.c);
+        let om = i.mvp * glam::Vec4::from((vertex.position,1.0));
+        return om.xyz()/om.w;
     }
 }

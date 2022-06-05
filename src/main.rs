@@ -68,7 +68,7 @@ fn main() {
     
     let mut shader = shader::Shader{
         lights: vec![light],
-        c:3.0,
+        time: 0.0,
     };
     
     let time = Instant::now();
@@ -81,17 +81,12 @@ fn main() {
                 event: WindowEvent::CloseRequested,
                 ..
             } => {
-                println!("The close button was pressed; stopping");
                 *control_flow = ControlFlow::Exit
             },
             Event::MainEventsCleared => {
                 let t = time.elapsed().as_secs_f32();
+                shader.time = t;
                 
-                shader.lights[0].position = glam::Vec3::new(
-                    (t * 0.5).sin() * 2.0,
-                    (t * 0.5).cos() * 2.0,
-                    (t * 0.5).sin() * 2.0,
-                );
 
                 let start = Instant::now();
                 canvas.clear_frame();
@@ -108,7 +103,6 @@ fn main() {
         if input.update(&event){
             if input.key_pressed(VirtualKeyCode::Escape) || input.quit() {
                 *control_flow = ControlFlow::Exit;
-                println!("Exiting...");
                 return;
             }
             
