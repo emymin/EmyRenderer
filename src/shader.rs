@@ -1,4 +1,6 @@
-use crate::model::Material;
+use glam::Vec4Swizzles;
+
+use crate::model::{Material,Vertex};
 
 pub struct Light{
     pub position: glam::Vec3,
@@ -57,21 +59,32 @@ pub struct Shader{
     
 }
 
+pub struct FragInput{
+    pub uv : glam::Vec2,
+    pub position : glam::Vec3,
+    pub normal : glam::Vec3,
+
+}
+
+pub struct VertInput{
+    pub mvp : glam::Mat4,
+}
+
 impl Shader{
-    pub fn fragment(&self,uv:glam::Vec2,normal:glam::Vec3,position:glam::Vec3,material:&Material) -> glam::Vec4{
-        let mut color = material.albedo_texture.get_color_uv(uv);
+    pub fn fragment(&self,i:&FragInput,material:&Material) -> glam::Vec4{
+        let mut color = material.albedo_texture.get_color_uv(i.uv);
 
         let mut light_color = glam::Vec3::new(0.0,0.0,0.0);
         for light in &self.lights{
-            let dir = light.position - position;
+            let dir = light.position - i.position;
             let distance = dir.length();
             let light_dir = dir.normalize();
-            light_color += light.color * light_dir.dot(normal).max(0.0) * (light.intensity / distance*distance);
+            light_color += light.color * light_dir.dot(i.normal).max(0.0) * (light.intensity / distance*distance);
         }
-
         color = color * glam::Vec4::from((light_color,1.0));
-
-        //color = glam::Vec4::new(uv.x,uv.y,0.0,1.0);
         return color;
+    }
+    pub fn vertex(&self,vertex:&Vertex,i:&VertInput) -> glam::Vec3{
+        return (i.mvp * glam::Vec4::from((vertex.position,1.0))).xyz();
     }
 }

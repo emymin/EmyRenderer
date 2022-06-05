@@ -9,7 +9,7 @@ use winit::{
 };
 use winit_input_helper::WinitInputHelper;
 use std::time::Instant;
-use std::env;
+use clap::{Arg, Command};
 
 
 pub mod draw;
@@ -20,8 +20,29 @@ const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let path = &args[1];
+
+    let matches = Command::new("EmyRenderer")
+        .version("0.1.0")
+        .author("emymin")
+        .about("Renders all your models")
+        .arg(Arg::new("Path")
+                 .required(true)
+                 .short('p')
+                 .long("path")
+                 .takes_value(true)
+                 .help("The path of the model to render"))
+        .arg(Arg::new("Use Wireframe")
+                 .short('w')
+                 .long("use_wireframe")
+                 .takes_value(true)
+                 .help("Draws the model in wireframe")
+                 .default_value("false")
+                )
+        .get_matches();
+
+    let path = matches.value_of("Path").unwrap_or("");
+    let is_wireframe = matches.value_of("Use Wireframe").unwrap_or("false").parse::<bool>().unwrap();
+
 
     let event_loop = EventLoop::new();
     let mut input = WinitInputHelper::new();
@@ -55,7 +76,7 @@ fn main() {
     let start = Instant::now();
     for model in models.iter(){
         let now = Instant::now();
-        canvas.draw_model(&model,&shader,false);
+        canvas.draw_model(&model,&shader,is_wireframe);
         let elapsed = now.elapsed();
         println!("{} drawn in {} ms",model.name,elapsed.as_millis());
     }

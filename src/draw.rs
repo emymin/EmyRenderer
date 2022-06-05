@@ -3,7 +3,7 @@ use winit::{window::Window};
 use std::mem;
 use glam::Vec3Swizzles;
 use crate::model::{Model,Vertex,Material};
-use crate::shader::{Shader};
+use crate::shader::{Shader,FragInput,VertInput};
 
 
 pub struct Canvas {
@@ -11,6 +11,7 @@ pub struct Canvas {
     pub height: u32,
     pub pixels: Pixels,
     pub depth_buffer: Vec<f32>,
+    screen_space_transform: glam::Mat4,
 }
 
 fn linear_to_byte(value: f32) -> u8 {
@@ -40,6 +41,15 @@ impl Canvas {
         let window_size = window.inner_size();
         let surface_texture = SurfaceTexture::new(window_size.width, window_size.height,&window);
         let depth_buffer = vec![f32::NEG_INFINITY; (width * height) as usize];
+
+        let screen_space_transform = glam::Mat4::from_cols_array(&[
+            width as f32/2.0,0.0,0.0,0.0,
+            0.0,-(height as f32)/2.0,0.0,0.0,
+            0.0,0.0,1.0,0.0,
+            width as f32/2.0,height as f32/2.0,0.0,1.0
+        ]
+        );
+
         if let Ok(pixels) = 
             Pixels::new(width,height,surface_texture)
         {
@@ -48,6 +58,7 @@ impl Canvas {
                 height,
                 pixels,
                 depth_buffer,
+                screen_space_transform,
             })
         } else {
             return Err("Failed to initialize frame buffer".to_string());
@@ -151,11 +162,11 @@ impl Canvas {
     }
     
 
-    pub fn draw_triangle(&mut self, v0:&Vertex,v1:&Vertex,v2:&Vertex,shader:&Shader,material:&Material,is_wireframe:bool){
-        let t0 = self.to_screen_space(&v0.position);
-        let t1 = self.to_screen_space(&v1.position);
-        let t2 = self.to_screen_space(&v2.position);
-        
+    pub fn draw_triangle(&mut self, v0:&Vertex,v1:&Vertex,v2:&Vertex,shader:&Shader,material:&Material,vert_input:&VertInput, is_wireframe:bool){ 
+        let t0 = shader.vertex(v0,&vert_input);
+        let t1 = shader.vertex(v1,&vert_input);
+        let t2 = shader.vertex(v2,&vert_input);
+
         if is_wireframe {
             self.draw_wire_triangle(
                 t0.xy(),
@@ -163,12 +174,12 @@ impl Canvas {
                 t2.xy(),
                 &glam::Vec4::ONE,
             );
+            return;
         }
 
         let mut max_box = glam::Vec2::new(0.0,0.0);
         let mut min_box = glam::Vec2::new((self.width-1) as f32,(self.height-1) as f32);
         let clamp = min_box.clone();
-
         for v in [t0,t1,t2] {
             max_box.x = max_box.x.max(v.x).min(clamp.x);
             max_box.y = max_box.y.max(v.y).min(clamp.y);
@@ -181,25 +192,19 @@ impl Canvas {
         while x<max_box.x.ceil() as i32{
             let mut y = min_box.y.ceil() as i32;
             while y<max_box.y.ceil() as i32{
-
                 let bc = to_barycentric(t0,t1,t2,glam::Vec3::new(x as f32,y as f32, 0.0));
-
                 if bc.x>=0.0 && bc.y>=0.0 && bc.z>=0.0 {
-
                     let z = bc.x*t0.z + bc.y*t1.z + bc.z*t2.z;
-                    
                     if z>self.get_pixel_depth(x, y){
-                        
-                        let uv = bc.x*v0.uv + bc.y*v1.uv + bc.z*v2.uv;
-                        let normal = bc.x*v0.normal + bc.y*v1.normal + bc.z*v2.normal;
-                        let position = bc.x*v0.position + bc.y*v1.position + bc.z*v2.position;
-
-                        let color = shader.fragment(uv, normal,position,material);
-
+                        let fraginput = FragInput{
+                            uv : bc.x*v0.uv + bc.y*v1.uv + bc.z*v2.uv,
+                            normal : bc.x*v0.normal + bc.y*v1.normal + bc.z*v2.normal,
+                            position : bc.x*v0.position + bc.y*v1.position + bc.z*v2.position
+                        };
+                        let color = shader.fragment(&fraginput,material);
                         self.set_pixel(x,y,&color);
                         self.set_pixel_depth(x,y,z);
                     }
-
                 }
                 y+=1;
             }
@@ -210,6 +215,14 @@ impl Canvas {
 
     pub fn draw_model(&mut self,model:&Model,shader:&Shader,is_wireframe:bool){
         println!("Drawing model {}",model.name);
+
+        let mut mvp = glam::Mat4::from_cols_array(&[1.0,0.0,0.0,0.0,
+            0.0,1.0,0.0,0.0,
+            0.0,0.0,1.0,0.0,
+            0.0,0.0,-1.0/3.0,1.0]);
+        mvp*=self.screen_space_transform;
+        let v_in = VertInput { mvp: mvp };
+
         for (_i,face) in model.faces.iter().enumerate(){
             self.draw_triangle(
                 &model.vertices[face.vertices[0]],
@@ -217,6 +230,7 @@ impl Canvas {
                 &model.vertices[face.vertices[2]],
                 shader,
                 &model.material,
+                &v_in,
                 is_wireframe
             );
 
