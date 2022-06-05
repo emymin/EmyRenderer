@@ -9,6 +9,7 @@ use winit::{
 };
 use winit_input_helper::WinitInputHelper;
 use std::time::Instant;
+use std::env;
 
 
 pub mod draw;
@@ -19,6 +20,9 @@ const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+    let path = &args[1];
+
     let event_loop = EventLoop::new();
     let mut input = WinitInputHelper::new();
 
@@ -42,17 +46,21 @@ fn main() {
     };
 
     
-    let models = model::load_obj("/dev/assets/bunny.obj").expect("Failed to load model");
+    let models = model::load_obj(path).expect("Failed to load model");
     let shader = shader::Shader{
         lights: vec![light],
     };
     
+
+    let start = Instant::now();
     for model in models.iter(){
         let now = Instant::now();
         canvas.draw_model(&model,&shader,false);
         let elapsed = now.elapsed();
         println!("{} drawn in {} ms",model.name,elapsed.as_millis());
     }
+    let elapsed = start.elapsed();
+    println!("Rendered {} models in {} ms",models.len(),elapsed.as_millis());
 
     event_loop.run(move |event, _, control_flow| {
         if let Event::RedrawRequested(_) = event {

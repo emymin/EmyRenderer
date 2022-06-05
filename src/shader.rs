@@ -46,9 +46,9 @@ impl Texture{
     }
 
     pub fn get_color_uv(&self,uv:glam::Vec2) -> glam::Vec4{
-        let x = (uv.x.fract() *self.width as f32) as u32;
-        let y = (uv.y.fract() *self.height as f32) as u32;
-        return self.get_color(x, y);
+        let x = (uv.x.fract() * (self.width-1) as f32) as u32;
+        let y = (((1.0-uv.y).fract()) * (self.height-1) as f32) as u32;
+        return self.get_color(x,y);
     }
 }
 
