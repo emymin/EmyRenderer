@@ -217,9 +217,9 @@ impl Canvas {
         let mut mvp = glam::Mat4::from_cols_array(&[1.0,0.0,0.0,0.0,
             0.0,1.0,0.0,0.0,
             0.0,0.0,1.0,0.0,
-            0.0,0.0,-1.0/3.0,1.0]);
+            0.0,0.0,-1.0/shader.c,1.0]);
         mvp*=self.screen_space_transform;
-        let v_in = VertInput { mvp: mvp };
+        let v_in = VertInput { mvp: mvp, c: shader.c };
 
         for (_i,face) in model.faces.iter().enumerate(){
             self.draw_triangle(

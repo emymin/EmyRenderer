@@ -68,6 +68,7 @@ fn main() {
     
     let mut shader = shader::Shader{
         lights: vec![light],
+        c:3.0,
     };
     
     let time = Instant::now();
@@ -85,8 +86,13 @@ fn main() {
             },
             Event::MainEventsCleared => {
                 let t = time.elapsed().as_secs_f32();
-                shader.lights[0].position = glam::Vec3::new(t.sin(),t.cos(),t.sin());
-        
+                
+                shader.lights[0].position = glam::Vec3::new(
+                    (t * 0.5).sin() * 2.0,
+                    (t * 0.5).cos() * 2.0,
+                    (t * 0.5).sin() * 2.0,
+                );
+
                 let start = Instant::now();
                 canvas.clear_frame();
                 for model in models.iter(){
