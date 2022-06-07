@@ -230,7 +230,7 @@ impl Canvas {
 
         let v_in = VertInput { mvp: mvp};
 
-        for (_i,face) in model.faces.iter().enumerate(){
+        for face in model.faces.iter(){
             self.draw_triangle(
                 &model.vertices[face.vertices[0]],
                 &model.vertices[face.vertices[1]],
@@ -241,7 +241,6 @@ impl Canvas {
                 globals,
                 is_wireframe,
             );
-            //print!("\r{}%",((_i as f32)/(model.faces.len() as f32)*100.0).round());
         }
     }
 
