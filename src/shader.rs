@@ -54,30 +54,32 @@ impl Texture{
     }
 }
 
-pub struct Shader{
+pub struct GlobalData{
     pub lights: Vec<Light>,
     pub time: f32,
-    
-    
 }
-
 pub struct FragInput{
     pub uv : glam::Vec2,
     pub position : glam::Vec3,
     pub normal : glam::Vec3,
-
+    
 }
-
 pub struct VertInput{
     pub mvp : glam::Mat4,
 }
+pub trait Shader{
+    fn fragment(&self,i:&FragInput,material:&Material,globals:&GlobalData) -> glam::Vec4;
+    fn vertex(&self,vertex:&Vertex,i:&VertInput,globals:&GlobalData) -> glam::Vec3;
+}
 
-impl Shader{
-    pub fn fragment(&self,i:&FragInput,material:&Material) -> glam::Vec4{
+
+pub struct LitShader{}
+impl Shader for LitShader{
+    fn fragment(&self,i:&FragInput,material:&Material,globals:&GlobalData) -> glam::Vec4{
         let mut color = material.albedo_texture.get_color_uv(i.uv);
 
         let mut light_color = glam::Vec3::new(0.0,0.0,0.0);
-        for light in &self.lights{
+        for light in &globals.lights{
             let dir = light.position - i.position;
             let distance = dir.length();
             let light_dir = dir.normalize();
@@ -86,7 +88,18 @@ impl Shader{
         color = color * glam::Vec4::from((light_color,1.0));
         return color;
     }
-    pub fn vertex(&self,vertex:&Vertex,i:&VertInput) -> glam::Vec3{
+    fn vertex(&self,vertex:&Vertex,i:&VertInput,_globals:&GlobalData) -> glam::Vec3{
+        let om = i.mvp * glam::Vec4::from((vertex.position,1.0));
+        return om.xyz()/om.w;
+    }
+}
+
+pub struct UnlitShader{}
+impl Shader for UnlitShader{
+    fn fragment(&self,i:&FragInput,material:&Material,_globals:&GlobalData) -> glam::Vec4{
+        return material.albedo_texture.get_color_uv(i.uv);
+    }
+    fn vertex(&self,vertex:&Vertex,i:&VertInput,_globals:&GlobalData) -> glam::Vec3{
         let om = i.mvp * glam::Vec4::from((vertex.position,1.0));
         return om.xyz()/om.w;
     }

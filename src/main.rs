@@ -36,8 +36,7 @@ fn main() {
                  .long("use_wireframe")
                  .takes_value(true)
                  .help("Draws the model in wireframe")
-                 .default_value("false")
-                )
+                 .default_value("false"))
         .get_matches();
 
     let path = matches.value_of("Path").unwrap_or("");
@@ -66,10 +65,14 @@ fn main() {
         intensity: 1.0,
     };
     
-    let mut shader = shader::Shader{
+    let mut globals = shader::GlobalData{
         lights: vec![light],
-        time: 0.0,
+        time:0.0,
     };
+
+    let shader = shader::LitShader{};
+
+
     
     let time = Instant::now();
 
@@ -85,13 +88,13 @@ fn main() {
             },
             Event::MainEventsCleared => {
                 let t = time.elapsed().as_secs_f32();
-                shader.time = t;
+                globals.time = t;
                 
 
                 let start = Instant::now();
                 canvas.clear_frame();
                 for model in models.iter(){
-                    canvas.draw_model(&model,&shader,is_wireframe);
+                    canvas.draw_model(&model,&shader,&globals,is_wireframe);
                 }
                 let elapsed = start.elapsed();
                 window.set_title(&format!("EmyRenderer | Frame Time: {} | FPS: {}", elapsed.as_millis(), 1.0 / elapsed.as_secs_f32()));

@@ -3,7 +3,7 @@ use winit::{window::Window};
 use std::mem;
 use glam::Vec3Swizzles;
 use crate::model::{Model,Vertex,Material};
-use crate::shader::{Shader,FragInput,VertInput};
+use crate::shader::{Shader,FragInput,VertInput,GlobalData};
 
 
 pub struct Canvas {
@@ -164,10 +164,10 @@ impl Canvas {
     }
     
 
-    pub fn draw_triangle(&mut self, v0:&Vertex,v1:&Vertex,v2:&Vertex,shader:&Shader,material:&Material,vert_input:&VertInput, is_wireframe:bool){ 
-        let t0 = shader.vertex(v0,&vert_input);
-        let t1 = shader.vertex(v1,&vert_input);
-        let t2 = shader.vertex(v2,&vert_input);
+    pub fn draw_triangle(&mut self, v0:&Vertex,v1:&Vertex,v2:&Vertex,shader:&dyn Shader,material:&Material,vert_input:&VertInput,globals:&GlobalData, is_wireframe:bool){ 
+        let t0 = shader.vertex(v0,&vert_input,globals);
+        let t1 = shader.vertex(v1,&vert_input,globals);
+        let t2 = shader.vertex(v2,&vert_input,globals);
 
         if is_wireframe {
             self.draw_wire_triangle(
@@ -203,7 +203,7 @@ impl Canvas {
                             normal : bc.x*v0.normal + bc.y*v1.normal + bc.z*v2.normal,
                             position : bc.x*v0.position + bc.y*v1.position + bc.z*v2.position
                         };
-                        let color = shader.fragment(&fraginput,material);
+                        let color = shader.fragment(&fraginput,material,globals);
                         self.set_pixel(x,y,&color);
                         self.set_pixel_depth(x,y,z);
                     }
@@ -215,8 +215,8 @@ impl Canvas {
         
     }
 
-    pub fn draw_model(&mut self,model:&Model,shader:&Shader,is_wireframe:bool){
-        let eye = glam::Vec3::new(shader.time.sin()*2.0,shader.time.sin(),shader.time.cos()*2.0);
+    pub fn draw_model(&mut self,model:&Model,shader:&dyn Shader,globals:&GlobalData,is_wireframe:bool){
+        let eye = glam::Vec3::new(globals.time.sin()*2.0,globals.time.sin(),globals.time.cos()*2.0);
         let center = glam::Vec3::new(0.0,0.0,0.0);
 
         let view_matrix = glam::Mat4::look_at_rh(eye,center,glam::Vec3::new(0.0,1.0,0.0));
@@ -238,7 +238,8 @@ impl Canvas {
                 shader,
                 &model.material,
                 &v_in,
-                is_wireframe
+                globals,
+                is_wireframe,
             );
             //print!("\r{}%",((_i as f32)/(model.faces.len() as f32)*100.0).round());
         }
