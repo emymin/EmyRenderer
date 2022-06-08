@@ -64,20 +64,23 @@ pub struct GlobalData{
 pub struct VertInput{
     pub mvp : glam::Mat4,
     pub model: glam::Mat4,
-    pub inverse_tranposed_model: glam::Mat4,
+    pub model_normal: glam::Mat4,
 }
 pub struct VertOutput{
     pub position : glam::Vec3,
+    pub world_position: glam::Vec3,
     pub normal : glam::Vec3,
     pub uv : glam::Vec2,
 }
 
 pub fn interpolate_vertoutput(a:&VertOutput,b:&VertOutput,c:&VertOutput,barycentric:&glam::Vec3) -> VertOutput{
     let position = interpolate_bc(a.position,b.position,c.position,barycentric);
+    let world_position = interpolate_bc(a.world_position,b.world_position,c.world_position,barycentric);
     let normal = interpolate_bc(a.normal,b.normal,c.normal,barycentric);
     let uv = interpolate_bc(a.uv,b.uv,c.uv,barycentric);
     VertOutput{
         position,
+        world_position,
         normal,
         uv,
     }
@@ -90,11 +93,13 @@ pub trait Shader{
 
 pub fn generic_vertex(vertex:&Vertex,i:&VertInput) -> VertOutput{
     let om = i.mvp * glam::Vec4::from((vertex.position,1.0));
-    let world_position = om.xyz()/om.w;
-    let normal = i.inverse_tranposed_model * glam::Vec4::from((vertex.normal,0.0));
+    let position = om.xyz()/om.w;
+    let world_position = i.model * glam::Vec4::from((vertex.position,1.0));
+    let normal = i.model_normal * glam::Vec4::from((vertex.normal,0.0));
     let uv = vertex.uv;
     VertOutput{
-        position: world_position,
+        position: position,
+        world_position: world_position.xyz(),
         normal: normal.xyz(),
         uv,
     }
@@ -105,13 +110,14 @@ pub struct LitShader{}
 impl Shader for LitShader{
     fn fragment(&self,i:&VertOutput,material:&Material,globals:&GlobalData) -> glam::Vec4{
         let mut color = material.albedo_texture.get_color_uv(i.uv);
+        let normal = i.normal.normalize();
 
         let mut light_color = glam::Vec3::new(0.0,0.0,0.0);
         for light in &globals.lights{
-            let dir = light.position - i.position;
+            let dir = light.position - i.world_position;
             let distance = dir.length();
             let light_dir = dir.normalize();
-            light_color += light.color * light_dir.dot(i.normal).max(0.0) * (light.intensity / distance*distance);
+            light_color += light.color * light_dir.dot(normal).max(0.0) * (light.intensity / distance*distance);
         }
         color = color * glam::Vec4::from((light_color,1.0));
         return color;
@@ -125,6 +131,27 @@ pub struct UnlitShader{}
 impl Shader for UnlitShader{
     fn fragment(&self,i:&VertOutput,material:&Material,_globals:&GlobalData) -> glam::Vec4{
         return material.albedo_texture.get_color_uv(i.uv);
+    }
+    fn vertex(&self,vertex:&Vertex,i:&VertInput,_globals:&GlobalData) -> VertOutput{
+        return generic_vertex(vertex,i);
+    }
+}
+
+pub enum DebugMode{
+    Uv,
+    Normal,
+    Position,
+}
+pub struct DebugShader{
+    pub mode: DebugMode,
+}
+impl Shader for DebugShader{
+    fn fragment(&self,i:&VertOutput,_material:&Material,_globals:&GlobalData) -> glam::Vec4{
+        match self.mode{
+            DebugMode::Uv => return glam::Vec4::new(i.uv.x,i.uv.y,0.0,1.0),
+            DebugMode::Normal => return glam::Vec4::from((i.normal,1.0)),
+            DebugMode::Position => return glam::Vec4::from((i.world_position,1.0)),
+        }
     }
     fn vertex(&self,vertex:&Vertex,i:&VertInput,_globals:&GlobalData) -> VertOutput{
         return generic_vertex(vertex,i);

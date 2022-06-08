@@ -17,7 +17,7 @@ pub struct Camera{
 
 impl Camera{
     pub fn new(width:u32,height:u32) -> Camera{
-        let view = glam::Mat4::IDENTITY;
+        let view = glam::Mat4::look_at_rh(glam::Vec3::new(0.0,0.0,1.0),glam::Vec3::ZERO,glam::Vec3::new(0.0,1.0,0.0));
         let projection = glam::Mat4::perspective_lh(f32::to_radians(60.0),
             width as f32/height as f32,
             0.1,

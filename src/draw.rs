@@ -207,10 +207,14 @@ impl Canvas {
     pub fn draw_model(&mut self,model:&Model,shader:&dyn Shader,globals:&GlobalData,is_wireframe:bool){
         let model_matrix = glam::Mat4::IDENTITY;
         let inverse_transpose_model_matrix = model_matrix.inverse().transpose();
-
         let mvp = globals.camera.viewport*globals.camera.projection*globals.camera.view*model_matrix;
 
-        let v_in = VertInput { mvp: mvp,model:model_matrix,inverse_tranposed_model:inverse_transpose_model_matrix };
+        let v_in = VertInput
+        { 
+            mvp: mvp,
+            model:model_matrix,
+            model_normal:inverse_transpose_model_matrix
+        };
 
         for face in model.faces.iter(){
             self.draw_triangle(
