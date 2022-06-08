@@ -3,7 +3,7 @@ use winit::{window::Window};
 use std::mem;
 use glam::Vec3Swizzles;
 use crate::model::{Model,Vertex,Material};
-use crate::shader::{Shader,FragInput,VertInput,GlobalData};
+use crate::shader::{Shader,interpolate_vertoutput,VertInput,GlobalData};
 
 
 pub struct Canvas {
@@ -11,14 +11,13 @@ pub struct Canvas {
     pub height: u32,
     pub pixels: Pixels,
     pub depth_buffer: Vec<f32>,
-    viewport_matrix: glam::Mat4,
 }
 
 fn linear_to_byte(value: f32) -> u8 {
     (value * 255.0) as u8
 }
 
-fn to_barycentric(a: glam::Vec3, b: glam::Vec3, c: glam::Vec3, p: glam::Vec3) -> glam::Vec3 {
+pub fn to_barycentric(a: &glam::Vec3, b: &glam::Vec3, c: &glam::Vec3, p: glam::Vec3) -> glam::Vec3 {
     let s1 = glam::Vec3::new(c.x - a.x, b.x - a.x, a.x - p.x);
     let s2 = glam::Vec3::new(c.y - a.y, b.y - a.y, a.y - p.y);
 
@@ -35,15 +34,12 @@ fn to_barycentric(a: glam::Vec3, b: glam::Vec3, c: glam::Vec3, p: glam::Vec3) ->
 
 }
 
-pub fn viewport_matrix(x:f32,y:f32,width:f32,height:f32,depth:f32) -> glam::Mat4{
-    let m = glam::Mat4::from_cols_array(&[
-        width/2.0, 0.0, 0.0, 0.0,
-        0.0, height/2.0, 0.0, 0.0,
-        0.0, 0.0, depth/2.0, 0.0,
-        x+width/2.0, y+height/2.0, depth/2.0, 1.0,
-    ]);
-    return m;
+pub fn interpolate_bc<T>(a:T,b:T,c:T,barycentric:&glam::Vec3) -> T
+    where T: std::ops::Mul<f32, Output = T> + std::ops::Add<T, Output = T>
+{
+    return a*barycentric.x + b*barycentric.y + c*barycentric.z;
 }
+
 
 
 impl Canvas {
@@ -53,8 +49,6 @@ impl Canvas {
         let surface_texture = SurfaceTexture::new(window_size.width, window_size.height,&window);
         let depth_buffer = vec![f32::NEG_INFINITY; (width * height) as usize];
 
-        let viewport_matrix = viewport_matrix(0.0, 0.0, width as f32, height as f32, 1.0);
-
         if let Ok(pixels) = 
             PixelsBuilder::new(width,height,surface_texture).build()
         {
@@ -63,7 +57,6 @@ impl Canvas {
                 height,
                 pixels,
                 depth_buffer,
-                viewport_matrix,
             })
         } else {
             return Err("Failed to initialize frame buffer".to_string());
@@ -171,9 +164,9 @@ impl Canvas {
 
         if is_wireframe {
             self.draw_wire_triangle(
-                t0.xy(),
-                t1.xy(),
-                t2.xy(),
+                t0.position.xy(),
+                t1.position.xy(),
+                t2.position.xy(),
                 &glam::Vec4::ONE,
             );
             return;
@@ -182,28 +175,24 @@ impl Canvas {
         let mut max_box = glam::Vec2::new(0.0,0.0);
         let mut min_box = glam::Vec2::new((self.width-1) as f32,(self.height-1) as f32);
         let clamp = min_box.clone();
-        for v in [t0,t1,t2] {
-            max_box.x = max_box.x.max(v.x).min(clamp.x);
-            max_box.y = max_box.y.max(v.y).min(clamp.y);
+        for v in [&t0,&t1,&t2] {
+            max_box.x = max_box.x.max(v.position.x).min(clamp.x);
+            max_box.y = max_box.y.max(v.position.y).min(clamp.y);
 
-            min_box.x = min_box.x.min(v.x).max(0.0);
-            min_box.y = min_box.y.min(v.y).max(0.0);
+            min_box.x = min_box.x.min(v.position.x).max(0.0);
+            min_box.y = min_box.y.min(v.position.y).max(0.0);
         }
 
         let mut x = min_box.x.ceil() as i32;
         while x<max_box.x.ceil() as i32{
             let mut y = min_box.y.ceil() as i32;
             while y<max_box.y.ceil() as i32{
-                let bc = to_barycentric(t0,t1,t2,glam::Vec3::new(x as f32,y as f32, 0.0));
+                let bc = to_barycentric(&t0.position,&t1.position,&t2.position,glam::Vec3::new(x as f32,y as f32, 0.0));
                 if bc.x>=0.0 && bc.y>=0.0 && bc.z>=0.0 {
-                    let z = bc.x*t0.z + bc.y*t1.z + bc.z*t2.z;
+                    let z = bc.x*t0.position.z + bc.y*t1.position.z + bc.z*t2.position.z;
                     if z>self.get_pixel_depth(x, y){
-                        let fraginput = FragInput{
-                            uv : bc.x*v0.uv + bc.y*v1.uv + bc.z*v2.uv,
-                            normal : bc.x*v0.normal + bc.y*v1.normal + bc.z*v2.normal,
-                            position : bc.x*v0.position + bc.y*v1.position + bc.z*v2.position
-                        };
-                        let color = shader.fragment(&fraginput,material,globals);
+                        let input = interpolate_vertoutput(&t0,&t1,&t2,&bc);
+                        let color = shader.fragment(&input,material,globals);
                         self.set_pixel(x,y,&color);
                         self.set_pixel_depth(x,y,z);
                     }
@@ -216,19 +205,12 @@ impl Canvas {
     }
 
     pub fn draw_model(&mut self,model:&Model,shader:&dyn Shader,globals:&GlobalData,is_wireframe:bool){
-        let eye = glam::Vec3::new(globals.time.sin()*2.0,globals.time.sin(),globals.time.cos()*2.0);
-        let center = glam::Vec3::new(0.0,0.0,0.0);
-
-        let view_matrix = glam::Mat4::look_at_rh(eye,center,glam::Vec3::new(0.0,1.0,0.0));
-        let projection_matrix = glam::Mat4::perspective_lh(f32::to_radians(60.0),
-                                                                self.width as f32/self.height as f32,
-                                                                0.1,
-                                                                100.0);
-
         let model_matrix = glam::Mat4::IDENTITY;
-        let mvp = self.viewport_matrix*projection_matrix*view_matrix*model_matrix;
+        let inverse_transpose_model_matrix = model_matrix.inverse().transpose();
 
-        let v_in = VertInput { mvp: mvp};
+        let mvp = globals.camera.viewport*globals.camera.projection*globals.camera.view*model_matrix;
+
+        let v_in = VertInput { mvp: mvp,model:model_matrix,inverse_tranposed_model:inverse_transpose_model_matrix };
 
         for face in model.faces.iter(){
             self.draw_triangle(

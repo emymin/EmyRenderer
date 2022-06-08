@@ -15,6 +15,7 @@ use clap::{Arg, Command};
 pub mod draw;
 pub mod model;
 pub mod shader;
+pub mod camera;
 
 const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
@@ -68,6 +69,7 @@ fn main() {
     let mut globals = shader::GlobalData{
         lights: vec![light],
         time:0.0,
+        camera: camera::Camera::new(WIDTH,HEIGHT),
     };
 
     let shader = shader::LitShader{};
@@ -89,6 +91,11 @@ fn main() {
             Event::MainEventsCleared => {
                 let t = time.elapsed().as_secs_f32();
                 globals.time = t;
+
+                let eye = glam::Vec3::new(globals.time.sin()*2.0,globals.time.sin(),globals.time.cos()*2.0);
+                let center = glam::Vec3::new(0.0,0.0,0.0);
+                let up = glam::Vec3::new(0.0,1.0,0.0);
+                globals.camera.look_at(eye,center,up);
                 
 
                 let start = Instant::now();

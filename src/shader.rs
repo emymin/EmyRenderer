@@ -1,6 +1,8 @@
 use glam::Vec4Swizzles;
 
 use crate::model::{Material,Vertex};
+use crate::draw::{interpolate_bc};
+use crate::camera::{Camera};
 
 pub struct Light{
     pub position: glam::Vec3,
@@ -57,25 +59,51 @@ impl Texture{
 pub struct GlobalData{
     pub lights: Vec<Light>,
     pub time: f32,
-}
-pub struct FragInput{
-    pub uv : glam::Vec2,
-    pub position : glam::Vec3,
-    pub normal : glam::Vec3,
-    
+    pub camera: Camera
 }
 pub struct VertInput{
     pub mvp : glam::Mat4,
+    pub model: glam::Mat4,
+    pub inverse_tranposed_model: glam::Mat4,
 }
+pub struct VertOutput{
+    pub position : glam::Vec3,
+    pub normal : glam::Vec3,
+    pub uv : glam::Vec2,
+}
+
+pub fn interpolate_vertoutput(a:&VertOutput,b:&VertOutput,c:&VertOutput,barycentric:&glam::Vec3) -> VertOutput{
+    let position = interpolate_bc(a.position,b.position,c.position,barycentric);
+    let normal = interpolate_bc(a.normal,b.normal,c.normal,barycentric);
+    let uv = interpolate_bc(a.uv,b.uv,c.uv,barycentric);
+    VertOutput{
+        position,
+        normal,
+        uv,
+    }
+}
+
 pub trait Shader{
-    fn fragment(&self,i:&FragInput,material:&Material,globals:&GlobalData) -> glam::Vec4;
-    fn vertex(&self,vertex:&Vertex,i:&VertInput,globals:&GlobalData) -> glam::Vec3;
+    fn vertex(&self,vertex:&Vertex,i:&VertInput,globals:&GlobalData) -> VertOutput;
+    fn fragment(&self,i:&VertOutput,material:&Material,globals:&GlobalData) -> glam::Vec4;
+}
+
+pub fn generic_vertex(vertex:&Vertex,i:&VertInput) -> VertOutput{
+    let om = i.mvp * glam::Vec4::from((vertex.position,1.0));
+    let world_position = om.xyz()/om.w;
+    let normal = i.inverse_tranposed_model * glam::Vec4::from((vertex.normal,0.0));
+    let uv = vertex.uv;
+    VertOutput{
+        position: world_position,
+        normal: normal.xyz(),
+        uv,
+    }
 }
 
 
 pub struct LitShader{}
 impl Shader for LitShader{
-    fn fragment(&self,i:&FragInput,material:&Material,globals:&GlobalData) -> glam::Vec4{
+    fn fragment(&self,i:&VertOutput,material:&Material,globals:&GlobalData) -> glam::Vec4{
         let mut color = material.albedo_texture.get_color_uv(i.uv);
 
         let mut light_color = glam::Vec3::new(0.0,0.0,0.0);
@@ -88,19 +116,17 @@ impl Shader for LitShader{
         color = color * glam::Vec4::from((light_color,1.0));
         return color;
     }
-    fn vertex(&self,vertex:&Vertex,i:&VertInput,_globals:&GlobalData) -> glam::Vec3{
-        let om = i.mvp * glam::Vec4::from((vertex.position,1.0));
-        return om.xyz()/om.w;
+    fn vertex(&self,vertex:&Vertex,i:&VertInput,_globals:&GlobalData) -> VertOutput{
+        return generic_vertex(vertex, i);
     }
 }
 
 pub struct UnlitShader{}
 impl Shader for UnlitShader{
-    fn fragment(&self,i:&FragInput,material:&Material,_globals:&GlobalData) -> glam::Vec4{
+    fn fragment(&self,i:&VertOutput,material:&Material,_globals:&GlobalData) -> glam::Vec4{
         return material.albedo_texture.get_color_uv(i.uv);
     }
-    fn vertex(&self,vertex:&Vertex,i:&VertInput,_globals:&GlobalData) -> glam::Vec3{
-        let om = i.mvp * glam::Vec4::from((vertex.position,1.0));
-        return om.xyz()/om.w;
+    fn vertex(&self,vertex:&Vertex,i:&VertInput,_globals:&GlobalData) -> VertOutput{
+        return generic_vertex(vertex,i);
     }
 }
