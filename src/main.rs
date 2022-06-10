@@ -78,13 +78,14 @@ fn main() {
     };
     
     let mut globals = shader::GlobalData{
+        ambient_light: glam::Vec3::new(0.1, 0.1, 0.1),
         lights: vec![light1],
         time:0.0,
         camera: camera::Camera::new(width,height),
     };
 
     let shader = shader::LitShader{};
-
+    //let shader = shader::DebugShader{mode:shader::DebugMode::Bitangent};
 
     
     let time = Instant::now();

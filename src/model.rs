@@ -3,16 +3,22 @@ use std::path;
 
 pub struct Material{
     pub albedo_texture: Texture,
+    pub normal_texture: Texture,
+    pub specular_texture: Texture,
 }
 
 pub struct Vertex{
     pub position: glam::Vec3,
-    pub normal: glam::Vec3,
     pub uv: glam::Vec2,
+    pub normal: glam::Vec3,
+    pub tangent: glam::Vec3,
+    pub bitangent: glam::Vec3,
 }
 pub struct Face{
     pub vertices: [usize; 3],
     pub normal: glam::Vec3,
+    pub tangent: glam::Vec3,
+    pub bitangent: glam::Vec3,
 }
 
 pub struct Model {
@@ -44,13 +50,22 @@ pub fn load_obj(path: &str) -> Result<Vec<Model>,String>{
 
         let mut material = Material{
             albedo_texture: Texture::white(),
+            normal_texture: Texture::blue(),
+            specular_texture: Texture::white(),
         };
         if materials.len()>0{
             let obj_material = &materials[model.mesh.material_id.unwrap()];
             let albedo_texture = &obj_material.diffuse_texture;
             if albedo_texture.len()>0 {
-                let texture_path = directory.join(albedo_texture);
-                material.albedo_texture = Texture::load(&texture_path.to_str().unwrap()).unwrap();
+                material.albedo_texture = Texture::load(&directory.join(albedo_texture).to_str().unwrap()).unwrap();
+            }
+            let normal_texture = &obj_material.normal_texture;
+            if normal_texture.len()>0 {
+                material.normal_texture = Texture::load(&directory.join(normal_texture).to_str().unwrap()).unwrap();
+            }
+            let specular_texture = &obj_material.specular_texture;
+            if specular_texture.len()>0 {
+                material.specular_texture = Texture::load(&directory.join(specular_texture).to_str().unwrap()).unwrap();
             }
         }
 
@@ -69,10 +84,15 @@ pub fn load_obj(path: &str) -> Result<Vec<Model>,String>{
                 model.mesh.texcoords[i*2],
                 model.mesh.texcoords[i*2+1],
             );
+            let tangent = glam::Vec3::ZERO; //tangent and bitangent are calculated while iterating faces
+            let bitangent = glam::Vec3::ZERO;
+
             vertices.push(Vertex{
-                position,
-                normal,
-                uv,
+                position:position,
+                uv:uv,
+                normal:normal,
+                tangent:tangent,
+                bitangent:bitangent,
             });
         }
 
@@ -86,9 +106,26 @@ pub fn load_obj(path: &str) -> Result<Vec<Model>,String>{
             let face_normal = (vertices[face_vertices[2]].position-vertices[face_vertices[0]].position)
                                     .cross(vertices[face_vertices[1]].position-vertices[face_vertices[0]].position)
                                     .normalize();
+            
+            let deltapos1 = vertices[face_vertices[1]].position-vertices[face_vertices[0]].position;
+            let deltapos2 = vertices[face_vertices[2]].position-vertices[face_vertices[1]].position;
+            let deltauv1 = vertices[face_vertices[1]].uv-vertices[face_vertices[0]].uv;
+            let deltauv2 = vertices[face_vertices[2]].uv-vertices[face_vertices[1]].uv;
+
+            let r = 1.0/(deltauv1.x*deltauv2.y-deltauv1.y*deltauv2.x);
+            let tangent = (deltapos1*deltauv2.y-deltapos2*deltauv1.y)*r;
+            let bitangent = (deltapos2*deltauv1.x-deltapos1*deltauv2.x)*r;
+
+            for v in face_vertices.iter(){
+                vertices[*v].tangent = tangent;
+                vertices[*v].bitangent = bitangent;
+            }
+
             let face = Face{
                 vertices:face_vertices,
                 normal:face_normal,
+                tangent:tangent,
+                bitangent:bitangent,
                 
             };
             faces.push(face);

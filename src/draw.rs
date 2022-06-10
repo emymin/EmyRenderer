@@ -206,14 +206,18 @@ impl Canvas {
 
     pub fn draw_model(&mut self,model:&Model,shader:&dyn Shader,globals:&GlobalData,is_wireframe:bool){
         let model_matrix = glam::Mat4::IDENTITY;
-        let inverse_transpose_model_matrix = model_matrix.inverse().transpose();
-        let mvp = globals.camera.viewport*globals.camera.projection*globals.camera.view*model_matrix;
+        let model_inverse_transpose = model_matrix.inverse().transpose();
+        let mv = globals.camera.view*model_matrix;
+        let mvp = globals.camera.projection*mv;
+        let mvpv = globals.camera.viewport*mvp;
 
         let v_in = VertInput
-        { 
+        {
+            mvpv:mvpv,
             mvp: mvp,
-            model:model_matrix,
-            model_normal:inverse_transpose_model_matrix
+            mv: mv,
+            m:model_matrix,
+            mit:model_inverse_transpose
         };
 
         for face in model.faces.iter(){
