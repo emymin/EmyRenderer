@@ -49,11 +49,11 @@ impl Texture{
         }
     }
 
-    pub fn blue() -> Texture {
+    pub fn normal_default() -> Texture {
         Texture{
             width: 1,
             height: 1,
-            pixels: vec![0, 0, 255, 255],
+            pixels: vec![128, 128, 255, 255],
         }
     }
 
@@ -142,11 +142,10 @@ pub fn generic_vertex(vertex:&Vertex,i:&VertInput) -> VertOutput{
 pub struct LitShader{}
 impl Shader for LitShader{
     fn fragment(&self,i:&VertOutput,material:&Material,globals:&GlobalData) -> glam::Vec4{
-        //let tbn = glam::Mat3::from_cols(i.tangent, i.bitangent, i.normal);
-        //let normal_map = material.normal_texture.get_color_uv(i.uv);
-        //let normal = (normal_map.xyz() * 2.0 - 1.0).normalize();
-        //let normal = (tbn * normal).normalize();
-        let normal = i.normal.normalize();
+        let tbn = glam::Mat3::from_cols(i.tangent.normalize(), i.bitangent.normalize(), i.normal.normalize());
+        let normal_map = material.normal_texture.get_color_uv(i.uv);
+        let normal = (normal_map.xyz() * 2.0 - 1.0).normalize();
+        let normal = (tbn * normal).normalize();
 
         let albedo_texture = material.albedo_texture.get_color_uv(i.uv);
         let mut color = albedo_texture.xyz();

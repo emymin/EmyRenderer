@@ -50,7 +50,7 @@ pub fn load_obj(path: &str) -> Result<Vec<Model>,String>{
 
         let mut material = Material{
             albedo_texture: Texture::white(),
-            normal_texture: Texture::blue(),
+            normal_texture: Texture::normal_default(),
             specular_texture: Texture::white(),
         };
         if materials.len()>0{
