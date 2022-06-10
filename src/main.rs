@@ -66,6 +66,7 @@ fn main() {
             .with_title("EmyRenderer")
             .with_inner_size(size)
             .with_min_inner_size(size)
+            .with_resizable(false)
             .build(&event_loop)
             .unwrap()
     };

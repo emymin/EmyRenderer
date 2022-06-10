@@ -51,7 +51,7 @@ pub fn load_obj(path: &str) -> Result<Vec<Model>,String>{
         let mut material = Material{
             albedo_texture: Texture::white(),
             normal_texture: Texture::normal_default(),
-            specular_texture: Texture::white(),
+            specular_texture: Texture::black(),
         };
         if materials.len()>0{
             let obj_material = &materials[model.mesh.material_id.unwrap()];
