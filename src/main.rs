@@ -105,7 +105,7 @@ fn main() {
                 let t = time.elapsed().as_secs_f32();
                 globals.time = t;
 
-                let eye = glam::Vec3::new(globals.time.sin()*2.0,globals.time.sin(),globals.time.cos()*2.0);              
+                let eye = glam::Vec3::new(globals.time.sin()*2.0,1.0,globals.time.cos()*2.0);              
                 let center = glam::Vec3::new(0.0,0.0,0.0);
                 let up = glam::Vec3::new(0.0,1.0,0.0);
                 globals.camera.look_at(eye,center,up);

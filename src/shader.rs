@@ -167,7 +167,6 @@ impl Shader for LitShader{
             let spec = r.dot(viewdir).max(0.0).powf(specular_power);
             specular_color += spec * light.color * light.intensity;
 
-            specular_color += spec * light.color;
             light_color += light.color * light_dir.dot(normal).max(0.0) * (light.intensity / distance*distance);
         }
 
