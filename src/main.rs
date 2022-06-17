@@ -105,14 +105,14 @@ fn main() {
                 let t = time.elapsed().as_secs_f32();
                 globals.time = t;
 
-                let eye = glam::Vec3::new(globals.time.sin()*2.0,1.0,globals.time.cos()*2.0);              
+                let eye = glam::Vec3::new(globals.time.sin()*1.0,1.0,globals.time.cos()*1.0);              
                 let center = glam::Vec3::new(0.0,0.0,0.0);
                 let up = glam::Vec3::new(0.0,1.0,0.0);
                 globals.camera.look_at(eye,center,up);
 
                 //globals.camera.look_at(glam::Vec3::new(0.0,0.0,(globals.time*0.1).sin()*2.0), glam::Vec3::new(0.0,0.0,50.0), glam::Vec3::new(0.0,1.0,0.0));
                 
-                globals.lights[0].position = glam::Vec3::new(globals.time.sin()*2.0,globals.time.sin(),globals.time.cos()*2.0);
+                globals.lights[0].position = eye;
                 
 
                 let start = Instant::now();

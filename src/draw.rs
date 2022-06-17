@@ -2,6 +2,7 @@ use pixels::{Pixels, PixelsBuilder, SurfaceTexture};
 use winit::{window::Window};
 use std::mem;
 use glam::Vec3Swizzles;
+use glam::Vec4Swizzles;
 use crate::model::{Model,Vertex,Material};
 use crate::shader::{Shader,interpolate_vertoutput,VertInput,GlobalData};
 
@@ -204,6 +205,34 @@ impl Canvas {
         
     }
 
+
+    pub fn draw_debug(&mut self, model:&Model, vert_input:&VertInput,_globals:&GlobalData){
+        let mut o = glam::Vec4::new(0.0,0.0,0.0,1.0);
+        let mut x = glam::Vec4::new(1.0,0.0,0.0,1.0);
+        let mut y = glam::Vec4::new(0.0,1.0,0.0,1.0);
+        let mut z = glam::Vec4::new(0.0,0.0,1.0,1.0);
+        for v in [&mut o,&mut x,&mut y,&mut z] {
+            *v = vert_input.mvpv*(*v);
+            *v /= v.w;
+        }
+        self.draw_line_vec(&o.xy(),&x.xy(),&glam::Vec4::new(1.0,0.0,0.0,1.0));
+        self.draw_line_vec(&o.xy(),&y.xy(),&glam::Vec4::new(0.0,1.0,0.0,1.0));
+        self.draw_line_vec(&o.xy(),&z.xy(),&glam::Vec4::new(0.0,0.0,1.0,1.0));
+
+        let scale = 0.01;
+        for v in model.vertices.iter(){
+            let mut p = vert_input.mvpv*glam::Vec4::from((v.position,1.0));
+            p /= p.w;
+            self.set_pixel(p.x as i32,p.y as i32,&glam::Vec4::new(1.0,0.0,0.0,1.0));
+
+            for n in [v.normal,v.tangent,v.bitangent]{
+                let mut end = vert_input.mvpv*glam::Vec4::from((v.position+n.normalize()*scale,1.0));
+                end /= end.w;
+                self.draw_line_vec(&p.xy(),&end.xy(),&glam::Vec4::from((n,1.0)));
+            }
+        }
+    }
+
     pub fn draw_model(&mut self,model:&Model,shader:&dyn Shader,globals:&GlobalData,is_wireframe:bool){
         let model_matrix = glam::Mat4::IDENTITY;
         let model_inverse_transpose = model_matrix.inverse().transpose();
@@ -217,9 +246,10 @@ impl Canvas {
             mvp: mvp,
             mv: mv,
             m:model_matrix,
-            mit:model_inverse_transpose
+            mit:model_inverse_transpose,
         };
 
+        
         for face in model.faces.iter(){
             self.draw_triangle(
                 &model.vertices[face.vertices[0]],
@@ -232,6 +262,7 @@ impl Canvas {
                 is_wireframe,
             );
         }
+        self.draw_debug(model, &v_in,globals);
     }
 
 
