@@ -233,7 +233,7 @@ impl Canvas {
         }
     }
 
-    pub fn draw_model(&mut self,model:&Model,shader:&dyn Shader,globals:&GlobalData,is_wireframe:bool){
+    pub fn draw_model(&mut self,model:&Model,shader:&dyn Shader,globals:&GlobalData,is_wireframe:bool,is_debug:bool){
         let model_matrix = glam::Mat4::IDENTITY;
         let model_inverse_transpose = model_matrix.inverse().transpose();
         let mv = globals.camera.view*model_matrix;
@@ -262,7 +262,10 @@ impl Canvas {
                 is_wireframe,
             );
         }
-        self.draw_debug(model, &v_in,globals);
+
+        if is_debug{
+            self.draw_debug(model, &v_in,globals);
+        }
     }
 
 

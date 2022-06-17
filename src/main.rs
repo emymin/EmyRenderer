@@ -32,9 +32,7 @@ fn main() {
                 .help("The path of the model to render"))
         .arg(Arg::new("Use Wireframe")
                 .long("use_wireframe")
-                .takes_value(true)
-                .help("Draws the model in wireframe")
-                .default_value("false"))
+                .help("Draws the model in wireframe"))
         .arg(Arg::new("Width")
                 .short('w')
                 .long("width")
@@ -47,13 +45,17 @@ fn main() {
                 .takes_value(true)
                 .help("The height of the window")
                 .default_value("720"))
+        .arg(Arg::new("Debug")
+                .short('d')
+                .long("debug")
+                .help("Enables debug mode"))
         .get_matches();
 
     let path = matches.value_of("Path").unwrap_or("");
-    let is_wireframe = matches.value_of("Use Wireframe").unwrap_or("false").parse::<bool>().unwrap();
+    let is_wireframe = matches.is_present("Use Wireframe");
     let width = matches.value_of("Width").unwrap_or("1280").parse::<u32>().unwrap();
     let height = matches.value_of("Height").unwrap_or("720").parse::<u32>().unwrap();
- 
+    let is_debug = matches.is_present("Debug");
     //Load models
     let models = model::load_obj(path).expect("Failed to load model");
 
@@ -105,7 +107,7 @@ fn main() {
                 let t = time.elapsed().as_secs_f32();
                 globals.time = t;
 
-                let eye = glam::Vec3::new(globals.time.sin()*1.0,1.0,globals.time.cos()*1.0);              
+                let eye = glam::Vec3::new(globals.time.sin()*2.0,1.0,globals.time.cos()*2.0);              
                 let center = glam::Vec3::new(0.0,0.0,0.0);
                 let up = glam::Vec3::new(0.0,1.0,0.0);
                 globals.camera.look_at(eye,center,up);
@@ -118,7 +120,7 @@ fn main() {
                 let start = Instant::now();
                 canvas.clear_frame();
                 for model in models.iter(){
-                    canvas.draw_model(&model,&shader,&globals,is_wireframe);
+                    canvas.draw_model(&model,&shader,&globals,is_wireframe,is_debug);
                 }
                 let elapsed = start.elapsed();
                 window.set_title(&format!("EmyRenderer | Frame Time: {} | FPS: {}", elapsed.as_millis(), 1.0 / elapsed.as_secs_f32()));
